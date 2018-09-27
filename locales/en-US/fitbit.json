@@ -1,0 +1,28 @@
+{
+    "fitbit": {
+        "label": {
+            "fitbit": "fitbit token",
+            "name": "Name",
+            "create": "Create your own app at",
+            "copy": "Copy the app details here",
+            "key": "Key",
+            "secret": "Secret",
+            "authenticate": "Authenticate with Fitbit",
+            "fitbitid": "Fitbit ID"
+        },
+        "status": {
+            "initializing": "initializing",
+            "failed": "failed",
+            "querying": "querying",
+            "authorized": "authorized"
+        },
+        "warn": {
+            "missing-credentials": "Missing fitbit credentials"
+        },
+        "error": {
+            "missing-credentials": "Missing fitbit credentials",
+            "oautherror": "<p>Something went wrong with the authentication process. The following error was returned:</p><p><b>__statusCode__</b>: __errorData__</p><p>One known cause of this type of failure is if the clock is wrong on system running Node-RED.</p>",
+            "authorized": "<html><head></head><body>Authorised - you can close this window and return to Node-RED</body></html>"
+        }
+    }
+}

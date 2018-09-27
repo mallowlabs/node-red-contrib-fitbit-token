@@ -1,0 +1,164 @@
+
+<script type="text/x-red" data-template-name="fitbit-credentials">
+    <div id="node-config-fitbit-app-keys">
+        <div class="form-row">
+            <p style="margin-top: 10px;"><b>1.</b> <span data-i18n="fitbit.label.create"></span> <a href="https://dev.fitbit.com/apps/new" target="_blank" style="text-decoration:underline;">fitbit.com</a></p>
+        </div>
+        <div class="form-row">
+            <p style="margin-top: 10px;"><b>2.</b> <span data-i18n="fitbit.label.copy"></span>:</p>
+        </div>
+        <div class="form-row">
+            <label style="margin-left: 10px; margin-right: -10px;" for="node-config-input-client_key"><i class="fa fa-user"></i> <span data-i18n="fitbit.label.key"></span></label>
+            <input type="password" id="node-config-input-client_key">
+        </div>
+        <div class="form-row">
+            <label style="margin-left: 10px; margin-right: -10px;" for="node-config-input-client_secret"><i class="fa fa-key"></i> <span data-i18n="fitbit.label.secret"></span></label>
+            <input type="password" id="node-config-input-client_secret">
+        </div>
+        <div class="form-row">
+           <label>&nbsp;</label>
+           <a class="btn" id="node-config-start-auth" href="#" target="_blank"><span data-i18n="fitbit.label.authenticate"></span></a>
+        </div>
+    </div>
+    <div id="node-config-fitbit-user">
+        <div class="form-row">
+            <label><i class="fa fa-user"></i> <span data-i18n="fitbit.label.fitbitid"></span></label><span id="node-config-fitbit-username" class="input-xlarge uneditable-input"></span>
+        </div>
+        <input type="hidden" id="node-config-input-username">
+    </div>
+</script>
+
+<script type="text/javascript">
+(function() {
+
+    RED.nodes.registerType('fitbit-credentials',{
+        category: 'config',
+        defaults: {
+            username: {value:""}
+        },
+        credentials: {
+            username: {type:"text"},
+            client_key: { type: "password"},
+            client_secret: { type: "password"},
+            access_token: {type: "password"},
+            refresh_token: {type:"password"},
+            expires_at: {type: "number"}
+        },
+        label: function() {
+            return this.username;
+        },
+        exportable: false,
+        oneditprepare: function() {
+            var id = this.id;
+
+            function updateFitbitAuthButton() {
+                var v1 = $("#node-config-input-client_key").val();
+                var v2 = $("#node-config-input-client_secret").val();
+
+                $("#node-config-start-auth").toggleClass("disabled",(v1.length === 0 || v2.length === 0));
+
+            }
+            $("#node-config-input-client_key").on('change keydown paste input',updateFitbitAuthButton);
+            $("#node-config-input-client_secret").on('change keydown paste input',updateFitbitAuthButton);
+
+            function updateFitbitScreenName(sn) {
+                $("#node-config-fitbit-app-keys").hide();
+                $("#node-config-fitbit-user").show();
+                $("#node-config-input-username").val(sn);
+                $("#node-config-fitbit-username").html(sn);
+            }
+
+            function pollFitbitCredentials(e) {
+                $.getJSON('credentials/fitbit-credentials/'+id,function(data) {
+                    if (data.username) {
+                        $("#node-config-dialog-ok").button("enable");
+                        updateFitbitScreenName(data.username);
+                        delete window.fitbitConfigNodeIntervalId;
+                    } else {
+                        window.fitbitConfigNodeIntervalId = window.setTimeout(pollFitbitCredentials,2000);
+                    }
+                });
+            }
+
+            updateFitbitAuthButton();
+
+            if (this.username) {
+                updateFitbitScreenName(this.username);
+            } else {
+                $("#node-config-fitbit-app-keys").show();
+                $("#node-config-fitbit-user").hide();
+                $("#node-config-dialog-ok").button("disable");
+            }
+
+            $("#node-config-start-auth").mousedown(function(e) {
+                var key = $("#node-config-input-client_key").val();
+                var secret = $("#node-config-input-client_secret").val();
+                var pathname = document.location.pathname;
+                if (pathname.slice(-1) !== "/") {
+                    pathname += "/";
+                }
+                var callback = encodeURIComponent(location.protocol+"//"+location.hostname+
+                    (location.port?":"+location.port:"")+
+                    pathname+"fitbit-credentials/auth/callback");
+                var url = 'fitbit-credentials/'+id+'/auth?callback='+callback+'&client_key='+key+"&client_secret="+secret;
+                $(this).attr("href",url);
+                window.fitbitConfigNodeIntervalId = window.setTimeout(pollFitbitCredentials,2000);
+            });
+            $("#node-config-start-auth").click(function(e) {
+                var key = $("#node-config-input-client_key").val();
+                var secret = $("#node-config-input-client_secret").val();
+                if (key === "" || secret === "") {
+                    e.preventDefault();
+                }
+            });
+
+        },
+        oneditsave: function() {
+            if (window.fitbitConfigNodeIntervalId) {
+                window.clearTimeout(window.fitbitConfigNodeIntervalId);
+                delete window.fitbitConfigNodeIntervalId;
+            }
+        },
+        oneditcancel: function(adding) {
+            if (window.fitbitConfigNodeIntervalId) {
+                window.clearTimeout(window.fitbitConfigNodeIntervalId);
+                delete window.fitbitConfigNodeIntervalId;
+            }
+        }
+    });
+})();
+</script>
+
+<script type="text/x-red" data-template-name="fitbit token">
+    <div class="form-row">
+        <label for="node-input-fitbit"><i class="fa fa-user"></i> <span data-i18n="fitbit.label.fitbit"></span></label>
+        <input type="text" id="node-input-fitbit">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="fitbit.label.name"></span></label>
+        <input type="text" id="node-input-name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="fitbit token">
+    <p>Get an access token of <a href="https://www.fitbit.com">Fitbit</a> API.</p>
+    <p>You can get Fitbit API access token in <code>msg.payload.access_token</code>.</p>
+    <p>Specify the callback URL: <code>http(s)://YOUR_NODERED_HOST/fitbit-credentials/auth/callback</code></p>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('fitbit token',{
+        category: 'social',
+        color: "#41a4a6",
+        defaults: {
+            fitbit: {type:"fitbit-credentials", required:true},
+            name: {value:""}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "fitbit.png",
+        label: function() {
+            return this.name || (this._("fitbit.label.fitbit"));
+        }
+    });
+</script>
