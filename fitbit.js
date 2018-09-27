@@ -60,7 +60,11 @@ module.exports = function(RED) {
     RED.nodes.registerType("fitbit token", FitbitInNode);
 
     var getCallbackUrl = function(req) {
-        var callback = req.protocol + "://" + req.get('host') + '/fitbit-credentials/auth/callback';
+        var protocol = req.protocol;
+        if (req.headers['x-forwarded-proto']) {
+            protocol = req.headers['x-forwarded-proto'];
+        }
+        var callback = protocol + "://" + req.get('host') + (RED.settings.httpAdminRoot + '/fitbit-credentials/auth/callback').replace('//', '/');
         return callback;
     }
 
