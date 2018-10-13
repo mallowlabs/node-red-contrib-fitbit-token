@@ -72,11 +72,15 @@ module.exports = function(RED) {
         node.status({fill:"blue", shape:"dot", text:"fitbit.status.initializing"});
         var now = new Date().getTime();
 
+        node.log("Refreshing token: " + credentials.access_token.slice(0, 10) + "..." + credentials.access_token.slice(-10, -1));
+
         if (now >= credentials.expires_at) {
             var oa = getOAuth(credentials.client_key, credentials.client_secret);
             oa.refreshAccessToken(credentials)
                 .then(function(new_token) {
                     node.status({fill:"blue", shape:"dot", text:"fitbit.status.authorized"});
+
+                    node.log("Refreshed token: " + new_token.token.access_token.slice(0, 10) + "..." + new_token.token.access_token.slice(-10, -1));
 
                     credentials.access_token = new_token.token.access_token;
                     credentials.refresh_token = new_token.token.refresh_token;
@@ -85,7 +89,7 @@ module.exports = function(RED) {
                 }).catch(function(err) {
                     node.status({fill:"red", shape:"dot", text:"fitbit.status.failed"});
 
-                    console.log('error refreshing user token', err);
+                    node.error('error refreshing user token', err);
                     credentials = {};
                     RED.nodes.addCredentials(node.id, credentials);
                 });
