@@ -84,7 +84,7 @@ module.exports = function(RED) {
 
                     credentials.access_token = new_token.token.access_token;
                     credentials.refresh_token = new_token.token.refresh_token;
-                    credentials.expires_at = now + 8 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
+                    credentials.expires_at = now + 4 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
                     RED.nodes.addCredentials(node.id, credentials);
                 }).catch(function(err) {
                     node.status({fill:"red", shape:"dot", text:"fitbit.status.failed"});
@@ -148,7 +148,7 @@ module.exports = function(RED) {
                         credentials.client_secret = client_secret;
                         credentials.access_token = token.token.access_token;
                         credentials.refresh_token = token.token.refresh_token;
-                        credentials.expires_at = new Date().getTime() + token.token.expires_in * 1000;//token.token.expires_at.getTime();
+                        credentials.expires_at = new Date().getTime() + 4 * 60 * 60 * 1000;//token.token.expires_at.getTime();
 
                         RED.nodes.addCredentials(nodeid, credentials);
                         res.send(RED._("fitbit.error.authorized"));
