@@ -21,7 +21,7 @@ module.exports = function(RED) {
             client_secret: { type: "password"},
             access_token: {type: "password"},
             refresh_token: {type:"password"},
-            expires_at: {type: "number"}
+            expires_at: {type: "password"}
         }
     });
 
@@ -42,6 +42,7 @@ module.exports = function(RED) {
                 refreshToken(node, credentials, function(credentials) {
                     var access_token = credentials.access_token;
                     msg.payload = {'access_token': access_token};
+                    node.log("Access with token: " + access_token.slice(0, 10) + "..." + access_token.slice(-10, -1));
                     node.send(msg);
                 });
             });
@@ -74,7 +75,7 @@ module.exports = function(RED) {
 
                     credentials.access_token = new_token.token.access_token;
                     credentials.refresh_token = new_token.token.refresh_token;
-                    credentials.expires_at = now + 4 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
+                    credentials.expires_at = now + 8 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
                     RED.nodes.addCredentials(node.id, credentials);
 
                     callback(credentials);
@@ -87,8 +88,9 @@ module.exports = function(RED) {
                     credentials = {};
                     RED.nodes.addCredentials(node.id, credentials);
                 });
+        } else {
+            callback(credentials);
         }
-        callback(credentials);
     }
 
     RED.httpAdmin.get('/fitbit-credentials/:id/auth', function(req, res){
