@@ -39,21 +39,11 @@ module.exports = function(RED) {
             var node = this;
             node.on('input', function(msg) {
                 var credentials = node.fitbitConfig.credentials;
-                refreshToken(node, credentials);
-
-                var access_token = credentials.access_token;
-                msg.payload = {'access_token': access_token};
-                node.send(msg);
-            });
-            node.on('refresh', function(msg) {
-                var credentials = node.fitbitConfig.credentials;
-                refreshToken(node, credentials);
-            });
-            var interval = setInterval(function() {
-                node.emit("refresh", {});
-            }, 3 * 60 * 60 * 1000); // 3 hours
-            node.on("close", function() {
-                if (interval !== null) { clearInterval(interval); }
+                refreshToken(node, credentials, function(credentials) {
+                    var access_token = credentials.access_token;
+                    msg.payload = {'access_token': access_token};
+                    node.send(msg);
+                });
             });
         }
     }
@@ -68,13 +58,13 @@ module.exports = function(RED) {
         return callback;
     }
 
-    var refreshToken = function(node, credentials) {
-        node.status({fill:"blue", shape:"dot", text:"fitbit.status.initializing"});
+    var refreshToken = function(node, credentials, callback) {
         var now = new Date().getTime();
-
-        node.log("Refreshing token: " + credentials.access_token.slice(0, 10) + "..." + credentials.access_token.slice(-10, -1));
-
         if (now >= credentials.expires_at) {
+            node.status({fill:"blue", shape:"dot", text:"fitbit.status.initializing"});
+
+            node.log("Refreshing token: " + credentials.access_token.slice(0, 10) + "..." + credentials.access_token.slice(-10, -1));
+
             var oa = getOAuth(credentials.client_key, credentials.client_secret);
             oa.refreshAccessToken(credentials)
                 .then(function(new_token) {
@@ -86,6 +76,10 @@ module.exports = function(RED) {
                     credentials.refresh_token = new_token.token.refresh_token;
                     credentials.expires_at = now + 4 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
                     RED.nodes.addCredentials(node.id, credentials);
+
+                    callback(credentials);
+
+                    node.status({});
                 }).catch(function(err) {
                     node.status({fill:"red", shape:"dot", text:"fitbit.status.failed"});
 
@@ -94,7 +88,7 @@ module.exports = function(RED) {
                     RED.nodes.addCredentials(node.id, credentials);
                 });
         }
-        node.status({});
+        callback(credentials);
     }
 
     RED.httpAdmin.get('/fitbit-credentials/:id/auth', function(req, res){
@@ -148,7 +142,7 @@ module.exports = function(RED) {
                         credentials.client_secret = client_secret;
                         credentials.access_token = token.token.access_token;
                         credentials.refresh_token = token.token.refresh_token;
-                        credentials.expires_at = new Date().getTime() + 4 * 60 * 60 * 1000;//token.token.expires_at.getTime();
+                        credentials.expires_at = new Date().getTime() + 8 * 60 * 60 * 1000;//token.token.expires_at.getTime();
 
                         RED.nodes.addCredentials(nodeid, credentials);
                         res.send(RED._("fitbit.error.authorized"));
