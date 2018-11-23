@@ -10,7 +10,12 @@ module.exports = function(RED) {
         );
     }
 
-    RED.nodes.registerType("fitbit-credentials", FitbitTokenNode, {
+    function FitbitNode(n) {
+        RED.nodes.createNode(this, n);
+        this.username = n.username;
+    }
+
+    RED.nodes.registerType("fitbit-credentials", FitbitNode, {
         credentials: {
             username: {type:"text"},
             client_key: { type: "password"},
@@ -24,11 +29,11 @@ module.exports = function(RED) {
     function FitbitTokenNode(n) {
         RED.nodes.createNode(this, n);
 
-        var credentials = this.credentials;
+        var credentials = RED.nodes.getNode(n.fitbit).credentials;
         if (credentials && credentials.access_token) {
             var node = this;
             node.on('input', function(msg) {
-                var credentials = node.credentials;
+                var credentials = RED.nodes.getNode(n.fitbit).credentials;
                 refreshToken(node, credentials, function(new_credentials) {
                     var access_token = new_credentials.access_token;
                     msg.payload = {'access_token': access_token};
