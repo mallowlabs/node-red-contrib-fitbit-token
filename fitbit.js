@@ -74,7 +74,7 @@ module.exports = function(RED) {
                 }).catch(function(err) {
                     node.status({fill:"red", shape:"dot", text:"fitbit.status.failed"});
 
-                    node.error('error refreshing user token', err);
+                    node.error('error refreshing fitbit user token: ' + err);
                     credentials = {};
                     RED.nodes.addCredentials(node.id, credentials);
                 });
