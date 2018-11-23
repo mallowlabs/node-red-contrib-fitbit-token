@@ -10,11 +10,7 @@ module.exports = function(RED) {
         );
     }
 
-    function FitbitNode(n) {
-        RED.nodes.createNode(this,n);
-        this.username = n.username;
-    }
-    RED.nodes.registerType("fitbit-credentials", FitbitNode,{
+    RED.nodes.registerType("fitbit-credentials", FitbitTokenNode, {
         credentials: {
             username: {type:"text"},
             client_key: { type: "password"},
@@ -25,22 +21,16 @@ module.exports = function(RED) {
         }
     });
 
-    function FitbitInNode(n) {
+    function FitbitTokenNode(n) {
         RED.nodes.createNode(this, n);
 
-        this.fitbitConfig = RED.nodes.getNode(n.fitbit);
-        if (!this.fitbitConfig) {
-            this.warn(RED._("fitbit.warn.missing-credentials"));
-            return;
-        }
-
-        var credentials = this.fitbitConfig.credentials;
+        var credentials = this.credentials;
         if (credentials && credentials.access_token) {
             var node = this;
             node.on('input', function(msg) {
-                var credentials = node.fitbitConfig.credentials;
-                refreshToken(node, credentials, function(credentials) {
-                    var access_token = credentials.access_token;
+                var credentials = node.credentials;
+                refreshToken(node, credentials, function(new_credentials) {
+                    var access_token = new_credentials.access_token;
                     msg.payload = {'access_token': access_token};
                     node.log("Access with token: " + access_token.slice(0, 10) + "..." + access_token.slice(-10, -1));
                     node.send(msg);
@@ -48,7 +38,7 @@ module.exports = function(RED) {
             });
         }
     }
-    RED.nodes.registerType("fitbit token", FitbitInNode);
+    RED.nodes.registerType("fitbit token", FitbitTokenNode);
 
     var getCallbackUrl = function(req) {
         var protocol = req.protocol;
