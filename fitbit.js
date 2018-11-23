@@ -57,7 +57,7 @@ module.exports = function(RED) {
             node.log("Refreshing token: " + credentials.access_token.slice(0, 10) + "..." + credentials.access_token.slice(-10, -1));
 
             var oa = getOAuth(credentials.client_key, credentials.client_secret);
-            oa.refreshAccessToken(credentials)
+            oa.refreshAccessToken(credentials, { forceRefresh: true })
                 .then(function(new_token) {
                     node.status({fill:"blue", shape:"dot", text:"fitbit.status.authorized"});
 
