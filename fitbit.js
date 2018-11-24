@@ -47,7 +47,7 @@ module.exports = function(RED) {
             });
             var interval = setInterval(function() {
                 node.emit("refresh", {});
-            }, 7 * 60 * 60 * 1000); // 7 hours
+            }, 4 * 60 * 60 * 1000); // 4 hours
             node.on("close", function() {
                 if (interval !== null) { clearInterval(interval); }
             });
