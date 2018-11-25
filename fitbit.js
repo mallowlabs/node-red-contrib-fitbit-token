@@ -29,27 +29,21 @@ module.exports = function(RED) {
     function FitbitTokenNode(n) {
         RED.nodes.createNode(this, n);
 
-        var credentials = RED.nodes.getNode(n.fitbit).credentials;
+        var credentialNodeId = n.fitbit;
+        this.log("node.fitbit " + JSON.stringify(credentialNodeId))
+
+        var credentials = RED.nodes.getNode(credentialNodeId).credentials;
         if (credentials && credentials.access_token) {
             var node = this;
+            node.status({});
             node.on('input', function(msg) {
-                var credentials = RED.nodes.getNode(n.fitbit).credentials;
-                refreshToken(node, credentials, function(new_credentials) {
+                var credentials = RED.nodes.getNode(credentialNodeId).credentials;
+                refreshToken(node, credentialNodeId, credentials, function(new_credentials) {
                     var access_token = new_credentials.access_token;
                     msg.payload = {'access_token': access_token};
-                    node.log("Access with token: " + access_token.slice(0, 10) + "..." + access_token.slice(-10, -1));
+                    node.log("Access with fitbit token: " + abbreviateToken(access_token));
                     node.send(msg);
                 });
-            });
-            node.on('refresh', function(msg) {
-                var credentials = RED.nodes.getNode(n.fitbit).credentials;
-                refreshToken(node, credentials, function(new_credentials) {});
-            });
-            var interval = setInterval(function() {
-                node.emit("refresh", {});
-            }, 4 * 60 * 60 * 1000); // 4 hours
-            node.on("close", function() {
-                if (interval !== null) { clearInterval(interval); }
             });
         }
     }
@@ -64,23 +58,33 @@ module.exports = function(RED) {
         return callback;
     }
 
-    var refreshToken = function(node, credentials, callback) {
+    var abbreviateToken = function(token) {
+        return token.slice(0, 10) + "..." + token.slice(-10);
+    }
+
+    var refreshToken = function(node, credentialNodeId, credentials, callback) {
         var now = new Date().getTime();
         node.status({fill:"blue", shape:"dot", text:"fitbit.status.initializing"});
 
-        node.log("Refreshing token: " + credentials.access_token.slice(0, 10) + "..." + credentials.access_token.slice(-10, -1));
+        node.log("Refreshing fitbit token: " + abbreviateToken(credentials.access_token));
+        node.log("Used fitbit refresh token: " + abbreviateToken(credentials.refresh_token));
 
         var oa = getOAuth(credentials.client_key, credentials.client_secret);
         oa.refreshAccessToken(credentials, { forceRefresh: true })
             .then(function(new_token) {
                 node.status({fill:"blue", shape:"dot", text:"fitbit.status.authorized"});
 
-                node.log("Refreshed token: " + new_token.token.access_token.slice(0, 10) + "..." + new_token.token.access_token.slice(-10, -1));
+                node.log("Refreshed fitbit token: " + abbreviateToken(new_token.token.access_token));
 
                 credentials.access_token = new_token.token.access_token;
                 credentials.refresh_token = new_token.token.refresh_token;
                 credentials.expires_at = now + 8 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
-                RED.nodes.addCredentials(node.id, credentials);
+                RED.nodes.addCredentials(credentialNodeId, credentials);
+
+                node.log("Saved fitbit credentials: (" + credentialNodeId + ") " + JSON.stringify(credentials))
+
+
+                node.log("Saved fitbit refresh token: " + abbreviateToken(credentials.refresh_token));
 
                 callback(credentials);
 
@@ -148,6 +152,12 @@ module.exports = function(RED) {
                         credentials.expires_at = new Date().getTime() + 8 * 60 * 60 * 1000;//token.token.expires_at.getTime();
 
                         RED.nodes.addCredentials(nodeid, credentials);
+
+                        //var node = RED.nodes.getNode(nodeid);
+                        //node.log("Saved fitbit credentials: (" + nodeid + ") " + JSON.stringify(credentials))
+
+                        //node.log("Saved fitbit refresh token " + abbreviateToken(credentials.refresh_token));
+
                         res.send(RED._("fitbit.error.authorized"));
                     }
                 });
