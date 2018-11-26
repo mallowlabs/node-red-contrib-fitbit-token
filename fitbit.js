@@ -18,8 +18,8 @@ module.exports = function(RED) {
     RED.nodes.registerType("fitbit-credentials", FitbitNode, {
         credentials: {
             username: {type:"text"},
-            client_key: { type: "password"},
-            client_secret: { type: "password"},
+            client_key: {type: "password"},
+            client_secret: {type: "password"},
             access_token: {type: "password"},
             refresh_token: {type:"password"},
             expires_at: {type: "password"}
@@ -30,24 +30,28 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, n);
 
         var credentialNodeId = n.fitbit;
-        this.log("node.fitbit " + JSON.stringify(credentialNodeId))
+        this.log("node.fitbit " + credentialNodeId);
 
         var credentials = RED.nodes.getNode(credentialNodeId).credentials;
         if (credentials && credentials.access_token) {
             var node = this;
             node.status({});
             node.on('input', function(msg) {
-                var credentials = RED.nodes.getNode(credentialNodeId).credentials;
-                refreshToken(node, credentialNodeId, credentials, function(new_credentials) {
-                    var access_token = new_credentials.access_token;
-                    msg.payload = {'access_token': access_token};
-                    node.log("Access with fitbit token: " + abbreviateToken(access_token));
-                    node.send(msg);
-                });
+                onInput(msg, node, credentialNodeId);
             });
         }
     }
     RED.nodes.registerType("fitbit token", FitbitTokenNode);
+
+    var onInput = function(msg, node, credentialNodeId) {
+        var credentials = RED.nodes.getNode(credentialNodeId).credentials;
+        refreshToken(node, credentialNodeId, credentials, function(new_credentials) {
+            var access_token = new_credentials.access_token;
+            msg.payload = {'access_token': access_token};
+            node.log("Access with fitbit token: " + abbreviateToken(access_token));
+            node.send(msg);
+        });
+    }
 
     var getCallbackUrl = function(req) {
         var protocol = req.protocol;
