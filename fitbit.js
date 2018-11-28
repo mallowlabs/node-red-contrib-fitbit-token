@@ -32,7 +32,7 @@ module.exports = function(RED) {
         var credentialNodeId = n.fitbit;
         this.log("node.fitbit " + credentialNodeId);
 
-        var credentials = RED.nodes.getNode(credentialNodeId).credentials;
+        var credentials = RED.nodes.getCredentials(credentialNodeId);
         if (credentials && credentials.access_token) {
             var node = this;
             node.status({});
@@ -44,7 +44,7 @@ module.exports = function(RED) {
     RED.nodes.registerType("fitbit token", FitbitTokenNode);
 
     var onInput = function(msg, node, credentialNodeId) {
-        var credentials = RED.nodes.getNode(credentialNodeId).credentials;
+        var credentials = RED.nodes.getCredentials(credentialNodeId);
         refreshToken(node, credentialNodeId, credentials, function(new_credentials) {
             var access_token = new_credentials.access_token;
             msg.payload = {'access_token': access_token};
