@@ -3,6 +3,15 @@ module.exports = function(RED) {
     var FitbitClient = require('fitbit-client-oauth2');
     var request = require('request')
 
+    var cfenv = require("cfenv");
+    var appEnv = cfenv.getAppEnv();
+    var couchService = appEnv.getService(process.env.NODE_RED_STORAGE_NAME);
+    var couchDbURL = couchService.credentials.url;
+
+    var nano = require('nano')(couchDbURL);
+    var db = nano.db.use('nodered');
+    var docPrefix = appEnv.name + '/fitbit-refresh-token/';
+
     function getOAuth(client_key, client_secret) {
         return new FitbitClient(
             client_key,
@@ -70,36 +79,62 @@ module.exports = function(RED) {
         var now = new Date().getTime();
         node.status({fill:"blue", shape:"dot", text:"fitbit.status.initializing"});
 
-        node.log("Refreshing fitbit token: " + abbreviateToken(credentials.access_token));
-        node.log("Used fitbit refresh token: " + abbreviateToken(credentials.refresh_token));
+        db.get(docPrefix + credentialNodeId, function(err,doc) {
+            if (err) {
+                node.log(err);
+                return;
+            }
+            credentials.refresh_token = doc.token;
 
-        var oa = getOAuth(credentials.client_key, credentials.client_secret);
-        oa.refreshAccessToken(credentials, { forceRefresh: true })
-            .then(function(new_token) {
-                node.status({fill:"blue", shape:"dot", text:"fitbit.status.authorized"});
+            node.log("Refreshing fitbit token: " + abbreviateToken(credentials.access_token));
+            node.log("Used fitbit refresh token: " + abbreviateToken(credentials.refresh_token));
 
-                node.log("Refreshed fitbit token: " + abbreviateToken(new_token.token.access_token));
+            var oa = getOAuth(credentials.client_key, credentials.client_secret);
+            oa.refreshAccessToken(credentials, { forceRefresh: true })
+                .then(function(new_token) {
+                    node.status({fill:"blue", shape:"dot", text:"fitbit.status.authorized"});
 
-                credentials.access_token = new_token.token.access_token;
-                credentials.refresh_token = new_token.token.refresh_token;
-                credentials.expires_at = now + 8 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
-                RED.nodes.addCredentials(credentialNodeId, credentials);
+                    node.log("Refreshed fitbit token: " + abbreviateToken(new_token.token.access_token));
 
-                node.log("Saved fitbit credentials: (" + credentialNodeId + ") " + JSON.stringify(credentials))
+                    credentials.access_token = new_token.token.access_token;
+                    credentials.refresh_token = new_token.token.refresh_token;
+                    credentials.expires_at = now + 8 * 60 * 60 * 1000;//new_token.token.expires_at.getTime();
+                    RED.nodes.addCredentials(credentialNodeId, credentials);
 
+                    upsertRefreshToken(credentialNodeId, new_token.token.refresh_token, function(err) {
+                        node.log(err);
+                    });
 
-                node.log("Saved fitbit refresh token: " + abbreviateToken(credentials.refresh_token));
+                    node.log("Saved fitbit credentials: (" + credentialNodeId + ") " + JSON.stringify(credentials))
 
-                callback(credentials);
+                    node.log("Saved fitbit refresh token: " + abbreviateToken(credentials.refresh_token));
 
-                node.status({});
-            }).catch(function(err) {
-                node.status({fill:"red", shape:"dot", text:"fitbit.status.failed"});
+                    callback(credentials);
 
-                node.error('error refreshing fitbit user token: ' + JSON.stringify(err));
-                credentials = {};
-                RED.nodes.addCredentials(node.id, credentials);
+                    node.status({});
+                }).catch(function(err) {
+                    node.status({fill:"red", shape:"dot", text:"fitbit.status.failed"});
+
+                    node.error('error refreshing fitbit user token: ' + JSON.stringify(err));
+                    credentials = {};
+                    RED.nodes.addCredentials(node.id, credentials);
+                });
+        })
+    }
+
+    var upsertRefreshToken = function(nodeId, refreshToken, reject) {
+        var key = docPrefix + nodeId;
+        db.get(key, function(err, old){
+            var doc = {_id: key, token: refreshToken};
+            if (!err) {
+                doc['_rev'] = old._rev;
+            }
+            db.insert(doc, function(err, newDoc) {
+                if (err) {
+                    reject(err);
+                }
             });
+        })
     }
 
     RED.httpAdmin.get('/fitbit-credentials/:id/auth', function(req, res){
@@ -156,6 +191,8 @@ module.exports = function(RED) {
                         credentials.expires_at = new Date().getTime() + 8 * 60 * 60 * 1000;//token.token.expires_at.getTime();
 
                         RED.nodes.addCredentials(nodeid, credentials);
+
+                        upsertRefreshToken(nodeid, token.token.refresh_token, function(err) {});
 
                         //var node = RED.nodes.getNode(nodeid);
                         //node.log("Saved fitbit credentials: (" + nodeid + ") " + JSON.stringify(credentials))

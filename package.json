@@ -4,7 +4,9 @@
     "description": "Node-RED nodes that gets an access token from Fitbit",
     "dependencies": {
         "fitbit-client-oauth2": "^2.0.3",
-        "request": "^2.74.0"
+        "request": "^2.74.0",
+        "cfenv": "~1.0.0",
+        "nano": "6.2.x"
     },
     "repository": {
         "type": "git",
